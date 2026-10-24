@@ -1,0 +1,12 @@
+mode                    log
+n                       200000
+docs                    50000
+postings (T)            5678185
+flushes                 28
+merges (before final)   25
+max_disk_indexes        4
+disk_indexes_at_end     3
+postings_written        24793384  (incl. finalize 30551267)
+postings_read           19194897  (incl. finalize 24873082)
+write_amplification     4.36643
+seconds                 8.43963

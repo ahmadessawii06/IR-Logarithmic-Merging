@@ -1,0 +1,12 @@
+mode                    aux
+n                       200000
+docs                    50000
+postings (T)            5678185
+flushes                 28
+merges (before final)   27
+max_disk_indexes        1
+disk_indexes_at_end     1
+postings_written        86578044  (incl. finalize 92335927)
+postings_read           80979557  (incl. finalize 86657742)
+write_amplification     15.2475
+seconds                 10.1777
