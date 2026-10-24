@@ -22,7 +22,12 @@
 namespace ir {
 
 LogarithmicIndex::~LogarithmicIndex() {
-    // TODO 5. Delete every generation that still exists on disk.
+    for (const std::string& base : gen_) {
+        if (!base.empty()) {
+            readers_.forget(base);
+            remove_index(base);
+        }
+    }
 }
 
 void LogarithmicIndex::flush() {
@@ -54,28 +59,55 @@ void LogarithmicIndex::flush() {
 }
 
 PostingsList LogarithmicIndex::lookup(const std::string& term) const {
-    // TODO 2. Combine the postings of EVERY existing generation and of Z0
-    //         into one sorted list.
-    (void)term;
-    throw std::logic_error("LogarithmicIndex::lookup: not implemented yet");
+    PostingsList result = z0_.lookup(term);
+    for (const std::string& base : gen_) {
+        if (!base.empty()) {
+            result = union_postings(result, disk_lookup(readers_, base, term));
+        }
+    }
+    return result;
 }
 
 void LogarithmicIndex::finalize(const std::string& out_base) {
-    // TODO 3. Flush Z0, then produce ONE index at out_base:
-    //         0 generations -> empty index; 1 -> rename it;
-    //         several -> a single merge_indexes call over all of them.
-    (void)out_base;
-    throw std::logic_error("LogarithmicIndex::finalize: not implemented yet");
+    flush();
+
+    std::vector<std::string> inputs;
+    // Higher occupied levels contain older documents.
+    for (auto it = gen_.rbegin(); it != gen_.rend(); ++it) {
+        if (!it->empty()) inputs.push_back(*it);
+    }
+
+    if (inputs.empty()) {
+        write_empty_index(out_base);
+    } else if (inputs.size() == 1) {
+        readers_.forget(inputs.front());
+        rename_index(inputs.front(), out_base);
+    } else {
+        merge_indexes(inputs, out_base);
+        stats_.merges++;
+        for (const std::string& base : inputs) {
+            readers_.forget(base);
+            remove_index(base);
+        }
+    }
+    gen_.clear();
 }
 
 std::size_t LogarithmicIndex::disk_indexes() const {
-    // TODO 4a. Number of generations that currently exist.
-    return 0;
+    std::size_t count = 0;
+    for (const std::string& base : gen_) {
+        if (!base.empty()) ++count;
+    }
+    return count;
 }
 
 std::uint64_t LogarithmicIndex::generation_mask() const {
-    // TODO 4b. Bit i is set iff gen_[i] exists.
-    return 0;
+    std::uint64_t mask = 0;
+    // A uint64_t can represent generation levels 0 through 63.
+    for (std::size_t i = 0; i < gen_.size() && i < 64; ++i) {
+        if (!gen_[i].empty()) mask |= (std::uint64_t{1} << i);
+    }
+    return mask;
 }
 
 }  // namespace ir
