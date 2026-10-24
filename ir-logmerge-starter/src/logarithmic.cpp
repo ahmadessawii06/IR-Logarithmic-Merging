@@ -26,14 +26,31 @@ LogarithmicIndex::~LogarithmicIndex() {
 }
 
 void LogarithmicIndex::flush() {
-    // TODO 1. LMERGEADDTOKEN, overflow branch (IIR Figure 4.7):
-    //           Z = Z0 written to a temporary index; clear Z0
-    //           for i = 0, 1, 2, ...
-    //               if gen_[i] exists:  Z = merge(gen_[i], Z); delete both inputs
-    //               else:               gen_[i] = Z; return
-    //         Grow gen_ when i reaches gen_.size().
-    //         gen_[i] always holds OLDER documents than Z: pass it first.
-    throw std::logic_error("LogarithmicIndex::flush: not implemented yet");
+    if (z0_.empty()) return;
+
+    std::string carry = new_temp_name();
+    z0_.write_to(carry);
+    z0_.clear();
+
+    for (std::size_t i = 0; ; ++i) {
+        if (i == gen_.size()) gen_.emplace_back();
+        if (gen_[i].empty()) {
+            gen_[i] = carry;
+            return;
+        }
+
+        std::string merged = new_temp_name();
+        // The existing generation contains older documents than the carry.
+        merge_indexes({gen_[i], carry}, merged);
+        stats_.merges++;
+
+        readers_.forget(gen_[i]);
+        readers_.forget(carry);
+        remove_index(gen_[i]);
+        remove_index(carry);
+        gen_[i].clear();
+        carry = merged;
+    }
 }
 
 PostingsList LogarithmicIndex::lookup(const std::string& term) const {
